@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Category, TransactionType } from "@/types/database";
 
 export default function CategoriesPage() {
