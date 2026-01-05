@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Category, Transaction, TransactionType } from "@/types/database";
+import { TransactionsSkeleton } from "@/components/skeletons/transactions-skeleton";
 
 interface TransactionWithCategory extends Transaction {
   category: Pick<Category, "id" | "name" | "type">;
@@ -218,16 +219,17 @@ export default function TransactionsPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>交易列表</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-center py-8 text-gray-500">載入中...</p>
-          ) : transactions.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">本月尚無交易紀錄</p>
-          ) : (
+      {isLoading ? (
+        <TransactionsSkeleton />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>交易列表</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {transactions.length === 0 ? (
+              <p className="text-center py-8 text-gray-500">本月尚無交易紀錄</p>
+            ) : (
             <div className="space-y-2">
               {transactions.map((tx) => (
                 <div
@@ -269,9 +271,10 @@ export default function TransactionsPage() {
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>

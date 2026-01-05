@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -124,7 +125,7 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="budget">預算金額 (TWD)</Label>
             {isLoading ? (
-              <p className="text-gray-500">載入中...</p>
+              <Skeleton className="h-10 w-48" />
             ) : (
               <Input
                 id="budget"
