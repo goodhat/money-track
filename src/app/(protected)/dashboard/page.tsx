@@ -21,6 +21,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { TransactionType } from "@/types/database";
 import { DashboardSkeleton } from "@/components/skeletons/dashboard-skeleton";
+import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
+import { ExpenseCategoryChart } from "@/components/charts/expense-category-chart";
 
 interface DashboardData {
   month: string;
@@ -208,34 +210,56 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Income vs Expense Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>收支概覽</CardTitle>
+          <CardDescription>本月收入、支出與預算比較</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IncomeExpenseChart
+            totalIncome={data?.totalIncome || 0}
+            totalExpense={data?.totalExpense || 0}
+            budget={data?.budget || null}
+          />
+        </CardContent>
+      </Card>
+
       {/* Expense by Category */}
       {data?.expenseByCategory && Object.keys(data.expenseByCategory).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>各分類支出</CardTitle>
+            <CardDescription>支出分類分佈圖</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {Object.entries(data.expenseByCategory)
-                .sort(([, a], [, b]) => b - a)
-                .map(([category, amount]) => (
-                  <div key={category} className="flex items-center justify-between">
-                    <span className="text-sm">{category}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{
-                            width: `${(amount / data.totalExpense) * 100}%`,
-                          }}
-                        />
+            <div className="space-y-6">
+              {/* Pie Chart */}
+              <ExpenseCategoryChart data={data.expenseByCategory} />
+
+              {/* Detailed List */}
+              <div className="space-y-3">
+                {Object.entries(data.expenseByCategory)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([category, amount]) => (
+                    <div key={category} className="flex items-center justify-between">
+                      <span className="text-sm">{category}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{
+                              width: `${(amount / data.totalExpense) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-24 text-right">
+                          {formatCurrency(amount)}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium w-24 text-right">
-                        {formatCurrency(amount)}
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
           </CardContent>
         </Card>
