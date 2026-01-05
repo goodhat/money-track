@@ -9,7 +9,7 @@ describe("Dashboard Page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch = vi.fn();
-    global.fetch = mockFetch as any;
+    global.fetch = mockFetch as typeof fetch;
   });
 
   it("should show loading state initially", () => {
