@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { TransactionType } from "@/types/database";
+import { DashboardSkeleton } from "@/components/skeletons/dashboard-skeleton";
 
 interface DashboardData {
   month: string;
@@ -97,7 +98,7 @@ export default function DashboardPage() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">載入中...</div>;
+    return <DashboardSkeleton />;
   }
 
   return (

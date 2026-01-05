@@ -17,8 +17,10 @@ describe("Dashboard Page", () => {
       new Promise(() => {}) // Never resolves
     );
 
-    render(<DashboardPage />);
-    expect(screen.getByText("載入中...")).toBeInTheDocument();
+    const { container } = render(<DashboardPage />);
+    // Check for skeleton elements
+    const skeletons = container.querySelectorAll('[data-slot="skeleton"]');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it("should display dashboard data after loading", async () => {

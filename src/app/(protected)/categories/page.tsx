@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category, TransactionType } from "@/types/database";
+import { CategoriesSkeleton } from "@/components/skeletons/categories-skeleton";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -116,7 +117,7 @@ export default function CategoriesPage() {
   const incomeCategories = categories.filter((c) => c.type === "income");
 
   if (isLoading) {
-    return <div className="text-center py-8">載入中...</div>;
+    return <CategoriesSkeleton />;
   }
 
   return (
