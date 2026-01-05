@@ -39,4 +39,34 @@ export const handlers = [
       },
     ]);
   }),
+
+  // Mock dashboard API (Next.js API route)
+  http.get("http://localhost:3000/api/dashboard", ({ request }) => {
+    const url = new URL(request.url);
+    const month = url.searchParams.get("month");
+
+    return HttpResponse.json({
+      data: {
+        month: month || "2026-01",
+        totalIncome: 50000,
+        totalExpense: 30000,
+        netIncome: 20000,
+        budget: 40000,
+        expenseByCategory: {
+          餐飲: 10000,
+          交通: 5000,
+        },
+        recentTransactions: [
+          {
+            id: "1",
+            type: "expense",
+            amount: 100,
+            date: "2026-01-03",
+            note: "Lunch",
+            category: { id: "1", name: "餐飲", type: "expense" },
+          },
+        ],
+      },
+    });
+  }),
 ];
