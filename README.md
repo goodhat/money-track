@@ -12,6 +12,8 @@ Personal expense tracking application built with Next.js 16 and Supabase.
 - 📱 Responsive design with Tailwind CSS
 - 🔐 Secure authentication with Supabase
 - 🌙 Clean, modern UI with shadcn/ui
+- ⚡ Skeleton loading states for better UX
+- ✅ Comprehensive test coverage (89%+)
 
 ## Tech Stack
 
@@ -110,6 +112,24 @@ npm run lint         # Run ESLint
 npm run type-check   # Run TypeScript type checking
 ```
 
+## Testing
+
+The project has comprehensive test coverage with unit tests, integration tests, and E2E tests:
+
+- **Test Coverage**: 89.36% overall coverage
+  - Statements: 89.36%
+  - Branches: 81.7%
+  - Functions: 85.71%
+  - Lines: 93.25%
+
+- **Test Suites**:
+  - API Route Tests (100% coverage)
+  - Component Integration Tests
+  - UI Component Tests
+  - E2E Tests with Playwright
+
+Run `npm run test:coverage` to see detailed coverage reports.
+
 ## Project Structure
 
 ```
@@ -120,6 +140,7 @@ money-track/
 │   │   ├── (protected)/       # Protected routes
 │   │   └── api/               # API routes
 │   ├── components/            # React components
+│   │   ├── skeletons/         # Loading skeleton components
 │   │   └── ui/                # shadcn/ui components
 │   ├── lib/                   # Utilities and libraries
 │   ├── test/                  # Test setup and mocks
