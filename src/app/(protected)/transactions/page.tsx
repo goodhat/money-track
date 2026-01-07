@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
+import { Search, X, Download } from "lucide-react";
+import { toast } from "sonner";
+import { exportTransactionsToCSV } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,21 +29,97 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Category, Transaction, TransactionType } from "@/types/database";
 import { TransactionsSkeleton } from "@/components/skeletons/transactions-skeleton";
+import { useApi, usePaginatedApi, useMonthSelector, useCurrency, useKeyboardShortcuts, KEYBOARD_SHORTCUTS } from "@/hooks";
 
 interface TransactionWithCategory extends Transaction {
   category: Pick<Category, "id" | "name" | "type">;
 }
 
+type FilterType = "all" | "income" | "expense";
+
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const { selectedMonth, setSelectedMonth, monthOptions } = useMonthSelector();
+  const { formatWithSign } = useCurrency();
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+
+  // Fetch categories using the useApi hook
+  const { data: categories = [] } = useApi<Category[]>("/api/categories");
+
+  // Build URL for paginated transactions
+  const buildTransactionsUrl = useCallback(
+    (cursor?: string) => {
+      const params = new URLSearchParams({ month: selectedMonth });
+      if (cursor) params.set("cursor", cursor);
+      return `/api/transactions?${params.toString()}`;
+    },
+    [selectedMonth]
+  );
+
+  // Fetch transactions using the usePaginatedApi hook
+  const {
+    data: transactions,
+    pagination,
+    isLoading,
+    isLoadingMore,
+    loadMore,
+    refetch: refetchTransactions,
+  } = usePaginatedApi<TransactionWithCategory>(buildTransactionsUrl);
+
+  // Filter transactions based on search and filters
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+
+    // Filter by type
+    if (filterType !== "all") {
+      result = result.filter((tx) => tx.type === filterType);
+    }
+
+    // Filter by category
+    if (filterCategory !== "all") {
+      result = result.filter((tx) => tx.category_id === filterCategory);
+    }
+
+    // Filter by search query (searches in note and category name)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (tx) =>
+          tx.note?.toLowerCase().includes(query) ||
+          tx.category.name.toLowerCase().includes(query) ||
+          String(tx.amount).includes(query)
+      );
+    }
+
+    return result;
+  }, [transactions, filterType, filterCategory, searchQuery]);
+
+  // Get categories for the current filter type
+  const availableCategories = useMemo(() => {
+    if (filterType === "all") {
+      return categories || [];
+    }
+    return (categories || []).filter((c) => c.type === filterType);
+  }, [categories, filterType]);
+
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    setSearchQuery("");
+    setFilterType("all");
+    setFilterCategory("all");
+  }, []);
+
+  const hasActiveFilters = searchQuery || filterType !== "all" || filterCategory !== "all";
+
+  // Ref for search input focus
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
   const [formData, setFormData] = useState({
@@ -53,74 +132,50 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchTransactions = async () => {
-    try {
-      const res = await fetch(`/api/transactions?month=${selectedMonth}`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setTransactions(json.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const filteredCategories = useMemo(
+    () => (categories || []).filter((c) => c.type === formData.type),
+    [categories, formData.type]
+  );
 
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch("/api/categories");
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setCategories(json.data);
-    } catch (err) {
-      console.error("Failed to fetch categories:", err);
-    }
-  };
+  const handleOpenDialog = useCallback(
+    (transaction?: TransactionWithCategory) => {
+      if (transaction) {
+        setEditingTransaction(transaction);
+        setFormData({
+          type: transaction.type,
+          category_id: transaction.category_id,
+          amount: String(transaction.amount),
+          date: transaction.date,
+          note: transaction.note || "",
+        });
+      } else {
+        setEditingTransaction(null);
+        const defaultCategory = (categories || []).find((c) => c.type === "expense");
+        setFormData({
+          type: "expense",
+          category_id: defaultCategory?.id || "",
+          amount: "",
+          date: new Date().toISOString().split("T")[0],
+          note: "",
+        });
+      }
+      setError(null);
+      setIsDialogOpen(true);
+    },
+    [categories]
+  );
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    setIsLoading(true);
-    fetchTransactions();
-  }, [selectedMonth]);
-
-  const filteredCategories = categories.filter((c) => c.type === formData.type);
-
-  const handleOpenDialog = (transaction?: TransactionWithCategory) => {
-    if (transaction) {
-      setEditingTransaction(transaction);
-      setFormData({
-        type: transaction.type,
-        category_id: transaction.category_id,
-        amount: String(transaction.amount),
-        date: transaction.date,
-        note: transaction.note || "",
-      });
-    } else {
-      setEditingTransaction(null);
-      const defaultCategory = categories.find((c) => c.type === "expense");
-      setFormData({
-        type: "expense",
+  const handleTypeChange = useCallback(
+    (type: TransactionType) => {
+      const defaultCategory = (categories || []).find((c) => c.type === type);
+      setFormData((prev) => ({
+        ...prev,
+        type,
         category_id: defaultCategory?.id || "",
-        amount: "",
-        date: new Date().toISOString().split("T")[0],
-        note: "",
-      });
-    }
-    setError(null);
-    setIsDialogOpen(true);
-  };
-
-  const handleTypeChange = (type: TransactionType) => {
-    const defaultCategory = categories.find((c) => c.type === type);
-    setFormData({
-      ...formData,
-      type,
-      category_id: defaultCategory?.id || "",
-    });
-  };
+      }));
+    },
+    [categories]
+  );
 
   const handleSubmit = async () => {
     if (!formData.category_id) {
@@ -154,9 +209,12 @@ export default function TransactionsPage() {
       if (json.error) throw new Error(json.error);
 
       setIsDialogOpen(false);
-      fetchTransactions();
+      refetchTransactions();
+      toast.success(editingTransaction ? "交易已更新" : "交易已新增");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "儲存失敗");
+      const message = err instanceof Error ? err.message : "儲存失敗";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -169,72 +227,170 @@ export default function TransactionsPage() {
       const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      fetchTransactions();
+      refetchTransactions();
+      toast.success("交易已刪除");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "刪除失敗");
+      const message = err instanceof Error ? err.message : "刪除失敗";
+      toast.error(message);
     }
   };
 
-  const formatAmount = (amount: number, type: TransactionType) => {
-    const formatted = new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      minimumFractionDigits: 0,
-    }).format(amount);
-    return type === "income" ? `+${formatted}` : `-${formatted}`;
-  };
-
-  const generateMonthOptions = () => {
-    const options = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
-      options.push({ value, label });
+  const handleExport = useCallback(() => {
+    try {
+      exportTransactionsToCSV(filteredTransactions, `transactions_${selectedMonth}.csv`);
+      toast.success("已匯出 CSV 檔案");
+    } catch {
+      toast.error("匯出失敗");
     }
-    return options;
-  };
+  }, [filteredTransactions, selectedMonth]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      ...KEYBOARD_SHORTCUTS.NEW_TRANSACTION,
+      handler: () => handleOpenDialog(),
+    },
+    {
+      ...KEYBOARD_SHORTCUTS.SEARCH,
+      handler: () => searchInputRef.current?.focus(),
+    },
+    {
+      ...KEYBOARD_SHORTCUTS.EXPORT,
+      handler: () => {
+        if (filteredTransactions.length > 0) {
+          handleExport();
+        }
+      },
+    },
+    {
+      ...KEYBOARD_SHORTCUTS.ESCAPE,
+      handler: () => setIsDialogOpen(false),
+    },
+  ]);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">交易紀錄</h1>
-        <Button onClick={() => handleOpenDialog()}>新增交易</Button>
+        <div className="flex gap-2">
+          {filteredTransactions.length > 0 && (
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              匯出 CSV
+            </Button>
+          )}
+          <Button onClick={() => handleOpenDialog()}>新增交易</Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Label>選擇月份：</Label>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {generateMonthOptions().map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
+            {/* Month selector */}
+            <div className="space-y-2">
+              <Label>月份</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full md:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search */}
+            <div className="space-y-2 flex-1">
+              <Label>搜尋</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  placeholder="搜尋備註、分類或金額..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Type filter */}
+            <div className="space-y-2">
+              <Label>類型</Label>
+              <Select value={filterType} onValueChange={(v: FilterType) => {
+                setFilterType(v);
+                setFilterCategory("all"); // Reset category when type changes
+              }}>
+                <SelectTrigger className="w-full md:w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="expense">支出</SelectItem>
+                  <SelectItem value="income">收入</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category filter */}
+            <div className="space-y-2">
+              <Label>分類</Label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-full md:w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  {availableCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear filters button */}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="h-4 w-4" />
+                清除篩選
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <TransactionsSkeleton />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>交易列表</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>交易列表</CardTitle>
+              {hasActiveFilters && (
+                <span className="text-sm text-muted-foreground">
+                  顯示 {filteredTransactions.length} 筆 / 共 {transactions.length} 筆
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {transactions.length === 0 ? (
-              <p className="text-center py-8 text-gray-500">本月尚無交易紀錄</p>
+            {filteredTransactions.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                {hasActiveFilters ? "沒有符合條件的交易" : "本月尚無交易紀錄"}
+              </p>
             ) : (
             <div className="space-y-2">
-              {transactions.map((tx) => (
+              {filteredTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer"
                   onClick={() => handleOpenDialog(tx)}
                 >
                   <div className="flex-1">
@@ -242,10 +398,10 @@ export default function TransactionsPage() {
                       <Badge variant={tx.type === "income" ? "default" : "secondary"}>
                         {tx.category.name}
                       </Badge>
-                      <span className="text-sm text-gray-500">{tx.date}</span>
+                      <span className="text-sm text-muted-foreground">{tx.date}</span>
                     </div>
                     {tx.note && (
-                      <p className="text-sm text-gray-600 mt-1">{tx.note}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-4">
@@ -254,7 +410,7 @@ export default function TransactionsPage() {
                         tx.type === "income" ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {formatAmount(tx.amount, tx.type)}
+                      {formatWithSign(tx.amount, tx.type)}
                     </span>
                     <Button
                       variant="ghost"
@@ -270,6 +426,17 @@ export default function TransactionsPage() {
                   </div>
                 </div>
               ))}
+              {pagination?.hasMore && (
+                <div className="pt-4 text-center">
+                  <Button
+                    variant="outline"
+                    onClick={loadMore}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? "載入中..." : "載入更多"}
+                  </Button>
+                </div>
+              )}
             </div>
             )}
           </CardContent>
@@ -333,10 +500,9 @@ export default function TransactionsPage() {
             </div>
             <div className="space-y-2">
               <Label>日期</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(date) => setFormData({ ...formData, date })}
               />
             </div>
             <div className="space-y-2">
