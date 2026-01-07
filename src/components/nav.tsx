@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -25,12 +26,12 @@ export function Nav() {
   };
 
   return (
-    <nav className="border-b bg-white">
+    <nav className="border-b bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/dashboard" className="text-xl font-bold text-gray-900">
+              <Link href="/dashboard" className="text-xl font-bold text-foreground">
                 MoneyTrack
               </Link>
             </div>
@@ -42,8 +43,8 @@ export function Nav() {
                   className={cn(
                     "inline-flex items-center px-3 py-2 text-sm font-medium rounded-md",
                     pathname === item.href
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   )}
                 >
                   {item.label}
@@ -51,7 +52,8 @@ export function Nav() {
               ))}
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="outline" size="sm" onClick={handleLogout}>
               登出
             </Button>
@@ -68,8 +70,8 @@ export function Nav() {
               className={cn(
                 "px-3 py-2 text-sm font-medium rounded-md",
                 pathname === item.href
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-500"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground"
               )}
             >
               {item.label}
