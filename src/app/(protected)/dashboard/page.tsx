@@ -23,6 +23,7 @@ import { TransactionType } from "@/types/database";
 import { DashboardSkeleton } from "@/components/skeletons/dashboard-skeleton";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { ExpenseCategoryChart } from "@/components/charts/expense-category-chart";
+import { BudgetAlert } from "@/components/budget-alert";
 
 interface DashboardData {
   month: string;
@@ -105,6 +106,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <BudgetAlert />
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <div className="flex items-center gap-2">
@@ -151,13 +153,13 @@ export default function DashboardPage() {
                     : "[&>div]:bg-green-500"
                 }
               />
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 {budgetProgress.toFixed(0)}% 已使用
               </p>
             </div>
           ) : (
-            <p className="text-gray-500">
-              <Link href="/settings" className="text-blue-600 hover:underline">
+            <p className="text-muted-foreground">
+              <Link href="/settings" className="text-primary hover:underline">
                 點此設定預算
               </Link>
             </p>
@@ -169,7 +171,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               本月收入
             </CardTitle>
           </CardHeader>
@@ -181,7 +183,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               本月支出
             </CardTitle>
           </CardHeader>
@@ -193,7 +195,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               淨收支
             </CardTitle>
           </CardHeader>
@@ -245,9 +247,9 @@ export default function DashboardPage() {
                     <div key={category} className="flex items-center justify-between">
                       <span className="text-sm">{category}</span>
                       <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-500 rounded-full"
+                            className="h-full bg-primary rounded-full"
                             style={{
                               width: `${(amount / data.totalExpense) * 100}%`,
                             }}
@@ -270,7 +272,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>最近交易</CardTitle>
           <CardDescription>
-            <Link href="/transactions" className="text-blue-600 hover:underline">
+            <Link href="/transactions" className="text-primary hover:underline">
               查看全部
             </Link>
           </CardDescription>
@@ -281,17 +283,17 @@ export default function DashboardPage() {
               {data.recentTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                 >
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge variant={tx.type === "income" ? "default" : "secondary"}>
                         {tx.category?.name || "未分類"}
                       </Badge>
-                      <span className="text-sm text-gray-500">{tx.date}</span>
+                      <span className="text-sm text-muted-foreground">{tx.date}</span>
                     </div>
                     {tx.note && (
-                      <p className="text-sm text-gray-600 mt-1">{tx.note}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
                     )}
                   </div>
                   <span
@@ -306,7 +308,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">本月尚無交易紀錄</p>
+            <p className="text-muted-foreground text-center py-4">本月尚無交易紀錄</p>
           )}
         </CardContent>
       </Card>

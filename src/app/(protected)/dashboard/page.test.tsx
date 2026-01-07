@@ -13,7 +13,8 @@ describe("Dashboard Page", () => {
   });
 
   it("should show loading state initially", () => {
-    mockFetch.mockImplementationOnce(() =>
+    // Both DashboardPage and BudgetAlert make fetch calls
+    mockFetch.mockImplementation(() =>
       new Promise(() => {}) // Never resolves
     );
 
@@ -48,10 +49,13 @@ describe("Dashboard Page", () => {
       },
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockData,
-    });
+    // Both DashboardPage and BudgetAlert fetch from /api/dashboard
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => mockData,
+      })
+    );
 
     render(<DashboardPage />);
 
@@ -85,10 +89,13 @@ describe("Dashboard Page", () => {
       },
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockData,
-    });
+    // Both DashboardPage and BudgetAlert fetch from /api/dashboard
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => mockData,
+      })
+    );
 
     render(<DashboardPage />);
 
