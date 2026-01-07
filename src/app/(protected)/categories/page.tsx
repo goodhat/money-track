@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,8 +94,11 @@ export default function CategoriesPage() {
 
       setIsDialogOpen(false);
       fetchCategories();
+      toast.success(editingCategory ? "分類已更新" : "分類已新增");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "儲存失敗");
+      const message = err instanceof Error ? err.message : "儲存失敗";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -108,8 +112,9 @@ export default function CategoriesPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       fetchCategories();
+      toast.success("分類已刪除");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "刪除失敗");
+      toast.error(err instanceof Error ? err.message : "刪除失敗");
     }
   };
 
@@ -136,12 +141,12 @@ export default function CategoriesPage() {
           <CardContent>
             <div className="space-y-2">
               {expenseCategories.length === 0 ? (
-                <p className="text-gray-500 text-sm">尚無支出分類</p>
+                <p className="text-muted-foreground text-sm">尚無支出分類</p>
               ) : (
                 expenseCategories.map((category) => (
                   <div
                     key={category.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                   >
                     <span>{category.name}</span>
                     <div className="space-x-2">
@@ -176,12 +181,12 @@ export default function CategoriesPage() {
           <CardContent>
             <div className="space-y-2">
               {incomeCategories.length === 0 ? (
-                <p className="text-gray-500 text-sm">尚無收入分類</p>
+                <p className="text-muted-foreground text-sm">尚無收入分類</p>
               ) : (
                 incomeCategories.map((category) => (
                   <div
                     key={category.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                   >
                     <span>{category.name}</span>
                     <div className="space-x-2">

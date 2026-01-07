@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,6 @@ export default function SettingsPage() {
   const [budgetAmount, setBudgetAmount] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const fetchBudget = async () => {
     try {
@@ -48,19 +48,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    setMessage(null);
     fetchBudget();
   }, [selectedMonth]);
 
   const handleSave = async () => {
     const amount = parseFloat(budgetAmount);
     if (isNaN(amount) || amount < 0) {
-      setMessage({ type: "error", text: "請輸入有效的預算金額" });
+      toast.error("請輸入有效的預算金額");
       return;
     }
 
     setIsSaving(true);
-    setMessage(null);
 
     try {
       const res = await fetch(`/api/budgets/${selectedMonth}`, {
@@ -72,12 +70,9 @@ export default function SettingsPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
-      setMessage({ type: "success", text: "預算已儲存" });
+      toast.success("預算已儲存");
     } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "儲存失敗",
-      });
+      toast.error(err instanceof Error ? err.message : "儲存失敗");
     } finally {
       setIsSaving(false);
     }
@@ -139,16 +134,6 @@ export default function SettingsPage() {
               />
             )}
           </div>
-
-          {message && (
-            <p
-              className={`text-sm ${
-                message.type === "success" ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {message.text}
-            </p>
-          )}
 
           <Button onClick={handleSave} disabled={isSaving || isLoading}>
             {isSaving ? "儲存中..." : "儲存預算"}
