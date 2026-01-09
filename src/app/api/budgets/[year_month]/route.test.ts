@@ -348,7 +348,7 @@ describe("Budgets [year_month] API", () => {
       });
 
       const response = await PUT(request, { params: Promise.resolve({ year_month: "2025-12" }) });
-      const data = await response.json();
+      await response.json();
 
       expect(response.status).toBe(200);
       expect(mockUpsert).toHaveBeenCalledWith(

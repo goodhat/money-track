@@ -73,7 +73,6 @@ describe("Dashboard API", () => {
       const mockBudgetSelect = vi.fn().mockReturnThis();
       const mockBudgetEq = vi.fn().mockReturnThis();
 
-      let callCount = 0;
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === "transactions") {
           return {

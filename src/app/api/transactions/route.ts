@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { Transaction, Category, TransactionType } from "@/types/database";
+import { Transaction, Category } from "@/types/database";
 
 const DEFAULT_PAGE_SIZE = 20;
 
