@@ -7,6 +7,7 @@ const DEFAULT_PAGE_SIZE = 20;
 interface TransactionWithCategory extends Omit<Transaction, 'category_id'> {
   category_id: string;
   category: Pick<Category, "id" | "name" | "type"> | null;
+  attachment_count?: number;
 }
 
 export async function GET(request: Request) {
@@ -87,6 +88,26 @@ export async function GET(request: Request) {
   const nextCursor = hasMore && items.length > 0
     ? `${items[items.length - 1].date}|${items[items.length - 1].id}`
     : null;
+
+  // Get attachment counts for all transactions
+  if (items.length > 0) {
+    const transactionIds = items.map((t) => t.id);
+    const { data: attachmentCounts } = await supabase
+      .from("transaction_attachments")
+      .select("transaction_id")
+      .in("transaction_id", transactionIds);
+
+    // Count attachments per transaction
+    const countMap = new Map<string, number>();
+    for (const att of attachmentCounts || []) {
+      countMap.set(att.transaction_id, (countMap.get(att.transaction_id) || 0) + 1);
+    }
+
+    // Add counts to items
+    for (const item of items) {
+      item.attachment_count = countMap.get(item.id) || 0;
+    }
+  }
 
   return NextResponse.json({
     data: items,

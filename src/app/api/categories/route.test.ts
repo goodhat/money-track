@@ -180,6 +180,7 @@ describe("Categories API", () => {
         user_id: mockUser.id,
         name: "Test",
         type: "expense",
+        color: null,
       });
     });
 

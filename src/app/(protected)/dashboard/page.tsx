@@ -24,6 +24,9 @@ import { DashboardSkeleton } from "@/components/skeletons/dashboard-skeleton";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { ExpenseCategoryChart } from "@/components/charts/expense-category-chart";
 import { BudgetAlert } from "@/components/budget-alert";
+import { SpendingStreaks } from "@/components/spending-streaks";
+import { WidgetCustomizer } from "@/components/widget-customizer";
+import { usePreferences } from "@/hooks";
 
 interface DashboardData {
   month: string;
@@ -49,6 +52,7 @@ export default function DashboardPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
+  const { isWidgetEnabled } = usePreferences();
 
   const fetchDashboard = async () => {
     try {
@@ -123,112 +127,119 @@ export default function DashboardPage() {
               ))}
             </SelectContent>
           </Select>
+          <WidgetCustomizer />
         </div>
       </div>
 
       {/* Budget Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle>預算使用狀況</CardTitle>
-          <CardDescription>
-            {data?.budget
-              ? `本月預算：${formatCurrency(data.budget)}`
-              : "尚未設定預算"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {data?.budget ? (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>已支出：{formatCurrency(data.totalExpense)}</span>
-                <span>剩餘：{formatCurrency(Math.max(data.budget - data.totalExpense, 0))}</span>
+      {isWidgetEnabled("budget") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>預算使用狀況</CardTitle>
+            <CardDescription>
+              {data?.budget
+                ? `本月預算：${formatCurrency(data.budget)}`
+                : "尚未設定預算"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {data?.budget ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>已支出：{formatCurrency(data.totalExpense)}</span>
+                  <span>剩餘：{formatCurrency(Math.max(data.budget - data.totalExpense, 0))}</span>
+                </div>
+                <Progress
+                  value={budgetProgress}
+                  className={
+                    budgetStatus() === "danger"
+                      ? "[&>div]:bg-red-500"
+                      : budgetStatus() === "warning"
+                      ? "[&>div]:bg-yellow-500"
+                      : "[&>div]:bg-green-500"
+                  }
+                />
+                <p className="text-sm text-muted-foreground text-center">
+                  {budgetProgress.toFixed(0)}% 已使用
+                </p>
               </div>
-              <Progress
-                value={budgetProgress}
-                className={
-                  budgetStatus() === "danger"
-                    ? "[&>div]:bg-red-500"
-                    : budgetStatus() === "warning"
-                    ? "[&>div]:bg-yellow-500"
-                    : "[&>div]:bg-green-500"
-                }
-              />
-              <p className="text-sm text-muted-foreground text-center">
-                {budgetProgress.toFixed(0)}% 已使用
+            ) : (
+              <p className="text-muted-foreground">
+                <Link href="/settings" className="text-primary hover:underline">
+                  點此設定預算
+                </Link>
               </p>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">
-              <Link href="/settings" className="text-primary hover:underline">
-                點此設定預算
-              </Link>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              本月收入
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">
-              {formatCurrency(data?.totalIncome || 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              本月支出
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-600">
-              {formatCurrency(data?.totalExpense || 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              淨收支
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={`text-2xl font-bold ${
-                (data?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {(data?.netIncome || 0) >= 0 ? "+" : ""}
-              {formatCurrency(data?.netIncome || 0)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isWidgetEnabled("summary") && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                本月收入
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-600">
+                {formatCurrency(data?.totalIncome || 0)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                本月支出
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-600">
+                {formatCurrency(data?.totalExpense || 0)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                淨收支
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p
+                className={`text-2xl font-bold ${
+                  (data?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {(data?.netIncome || 0) >= 0 ? "+" : ""}
+                {formatCurrency(data?.netIncome || 0)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Income vs Expense Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>收支概覽</CardTitle>
-          <CardDescription>本月收入、支出與預算比較</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <IncomeExpenseChart
-            totalIncome={data?.totalIncome || 0}
-            totalExpense={data?.totalExpense || 0}
-            budget={data?.budget || null}
-          />
-        </CardContent>
-      </Card>
+      {isWidgetEnabled("chart") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>收支概覽</CardTitle>
+            <CardDescription>本月收入、支出與預算比較</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <IncomeExpenseChart
+              totalIncome={data?.totalIncome || 0}
+              totalExpense={data?.totalExpense || 0}
+              budget={data?.budget || null}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Expense by Category */}
-      {data?.expenseByCategory && Object.keys(data.expenseByCategory).length > 0 && (
+      {isWidgetEnabled("category") && data?.expenseByCategory && Object.keys(data.expenseByCategory).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>各分類支出</CardTitle>
@@ -267,51 +278,61 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>最近交易</CardTitle>
-          <CardDescription>
-            <Link href="/transactions" className="text-primary hover:underline">
-              查看全部
-            </Link>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {data?.recentTransactions && data.recentTransactions.length > 0 ? (
-            <div className="space-y-2">
-              {data.recentTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={tx.type === "income" ? "default" : "secondary"}>
-                        {tx.category?.name || "未分類"}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{tx.date}</span>
-                    </div>
-                    {tx.note && (
-                      <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
-                    )}
+      {/* Two-column layout for Recent Transactions and Spending Streaks */}
+      {(isWidgetEnabled("transactions") || isWidgetEnabled("streaks")) && (
+        <div className={`grid gap-6 ${isWidgetEnabled("transactions") && isWidgetEnabled("streaks") ? "lg:grid-cols-2" : ""}`}>
+          {/* Recent Transactions */}
+          {isWidgetEnabled("transactions") && (
+            <Card>
+              <CardHeader>
+                <CardTitle>最近交易</CardTitle>
+                <CardDescription>
+                  <Link href="/transactions" className="text-primary hover:underline">
+                    查看全部
+                  </Link>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data?.recentTransactions && data.recentTransactions.length > 0 ? (
+                  <div className="space-y-2">
+                    {data.recentTransactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={tx.type === "income" ? "default" : "secondary"}>
+                              {tx.category?.name || "未分類"}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">{tx.date}</span>
+                          </div>
+                          {tx.note && (
+                            <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
+                          )}
+                        </div>
+                        <span
+                          className={`font-medium ${
+                            tx.type === "income" ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {tx.type === "income" ? "+" : "-"}
+                          {formatCurrency(tx.amount)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span
-                    className={`font-medium ${
-                      tx.type === "income" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {tx.type === "income" ? "+" : "-"}
-                    {formatCurrency(tx.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">本月尚無交易紀錄</p>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">本月尚無交易紀錄</p>
+                )}
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Spending Streaks */}
+          {isWidgetEnabled("streaks") && <SpendingStreaks />}
+        </div>
+      )}
     </div>
   );
 }

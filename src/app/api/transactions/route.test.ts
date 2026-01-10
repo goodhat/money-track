@@ -55,7 +55,13 @@ describe("Transactions API", () => {
 
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } });
 
-      // Build query chain mock
+      // Build query chain mock for transaction_attachments
+      const mockAttachmentQuery = {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      };
+
+      // Build query chain mock for transactions
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -72,14 +78,19 @@ describe("Transactions API", () => {
 
       mockQuery.limit.mockResolvedValue({ data: mockTransactions, error: null });
 
-      mockSupabase.from.mockReturnValue(mockQuery);
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === "transaction_attachments") {
+          return mockAttachmentQuery;
+        }
+        return mockQuery;
+      });
 
       const request = new Request("http://localhost:3000/api/transactions");
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data).toEqual(mockTransactions);
+      expect(data.data).toEqual(mockTransactions.map(t => ({ ...t, attachment_count: 0 })));
       expect(data.pagination).toBeDefined();
       expect(data.pagination.hasMore).toBe(false);
       expect(mockSupabase.from).toHaveBeenCalledWith("transactions");
@@ -101,6 +112,12 @@ describe("Transactions API", () => {
 
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } });
 
+      // Build query chain mock for transaction_attachments
+      const mockAttachmentQuery = {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      };
+
       const mockGte = vi.fn().mockReturnThis();
       const mockLt = vi.fn().mockResolvedValue({ data: mockTransactions, error: null });
 
@@ -117,14 +134,19 @@ describe("Transactions API", () => {
       mockQuery.order.mockReturnValue(mockQuery);
       mockQuery.limit.mockReturnValue(mockQuery);
 
-      mockSupabase.from.mockReturnValue(mockQuery);
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === "transaction_attachments") {
+          return mockAttachmentQuery;
+        }
+        return mockQuery;
+      });
 
       const request = new Request("http://localhost:3000/api/transactions?month=2026-01");
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data).toEqual(mockTransactions);
+      expect(data.data).toEqual(mockTransactions.map(t => ({ ...t, attachment_count: 0 })));
       expect(data.pagination).toBeDefined();
       expect(mockGte).toHaveBeenCalledWith("date", "2026-01-01");
       expect(mockLt).toHaveBeenCalledWith("date", "2026-02-01");
@@ -202,6 +224,12 @@ describe("Transactions API", () => {
 
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } });
 
+      // Build query chain mock for transaction_attachments
+      const mockAttachmentQuery = {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      };
+
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -212,7 +240,12 @@ describe("Transactions API", () => {
       mockQuery.order.mockReturnValue(mockQuery);
       mockQuery.limit.mockResolvedValue({ data: mockTransactions, error: null });
 
-      mockSupabase.from.mockReturnValue(mockQuery);
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === "transaction_attachments") {
+          return mockAttachmentQuery;
+        }
+        return mockQuery;
+      });
 
       const request = new Request("http://localhost:3000/api/transactions");
       const response = await GET(request);
