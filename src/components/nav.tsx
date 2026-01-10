@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -56,6 +57,7 @@ export function Nav() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <KeyboardShortcutsHelp />
             <ThemeToggle />
             <Button variant="outline" size="sm" onClick={handleLogout}>
               登出

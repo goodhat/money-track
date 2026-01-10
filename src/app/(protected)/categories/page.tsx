@@ -271,6 +271,8 @@ export default function CategoriesPage() {
               <ColorPicker
                 value={formData.color}
                 onChange={(color) => setFormData({ ...formData, color })}
+                showPreview
+                previewLabel={formData.name || "分類預覽"}
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}

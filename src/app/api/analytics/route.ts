@@ -16,6 +16,11 @@ interface CategoryBreakdown {
   percentage: number;
 }
 
+interface TransactionAmount {
+  type: "income" | "expense";
+  amount: number;
+}
+
 interface AnalyticsResponse {
   monthlyTrends: MonthlyData[];
   yearOverYear: {
@@ -28,6 +33,7 @@ interface AnalyticsResponse {
     monthlyExpense: number;
     savingsRate: number;
   };
+  transactionAmounts: TransactionAmount[];
 }
 
 export async function GET(request: Request) {
@@ -165,6 +171,18 @@ export async function GET(request: Request) {
   const totalIncomeSum = monthlyTrends.reduce((sum, m) => sum + m.income, 0);
   const totalExpenseSum = monthlyTrends.reduce((sum, m) => sum + m.expense, 0);
 
+  // Extract transaction amounts for distribution chart (only from recent months)
+  const transactionAmounts: TransactionAmount[] = (transactions || [])
+    .filter((tx) => {
+      const txDate = new Date(tx.date);
+      const monthsAgo = (currentYear - txDate.getFullYear()) * 12 + (currentMonth - (txDate.getMonth() + 1));
+      return monthsAgo >= 0 && monthsAgo < months;
+    })
+    .map((tx) => ({
+      type: tx.type as "income" | "expense",
+      amount: tx.amount,
+    }));
+
   const response: AnalyticsResponse = {
     monthlyTrends,
     yearOverYear: {
@@ -179,6 +197,7 @@ export async function GET(request: Request) {
         ? ((totalIncomeSum - totalExpenseSum) / totalIncomeSum) * 100
         : 0,
     },
+    transactionAmounts,
   };
 
   return NextResponse.json({ data: response });

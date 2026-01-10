@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
-import { Search, X, Download, Copy, Bookmark, Filter, Trash2 } from "lucide-react";
+import { Search, X, Download, Copy, Bookmark, Filter, Trash2, CheckSquare, Square, TrendingUp, TrendingDown, Receipt, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { exportTransactionsToCSV } from "@/lib/export";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Category, Transaction, TransactionType, SavedFilter } from "@/types/database";
 import { TransactionsSkeleton } from "@/components/skeletons/transactions-skeleton";
 import { useApi, usePaginatedApi, useMonthSelector, useCurrency, useKeyboardShortcuts, KEYBOARD_SHORTCUTS } from "@/hooks";
@@ -43,6 +44,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ImportTransactions } from "@/components/import-transactions";
 import { ReceiptAttachment, AttachmentIndicator } from "@/components/receipt-attachment";
+import { HighlightText } from "@/components/highlight-text";
+import { EmptyState } from "@/components/empty-state";
+import { NoteAutocomplete } from "@/components/note-autocomplete";
 
 interface TransactionWithCategory extends Transaction {
   category: Pick<Category, "id" | "name" | "type">;
@@ -59,6 +63,7 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
   // Fetch categories using the useApi hook
   const { data: categories = [] } = useApi<Category[]>("/api/categories");
@@ -100,6 +105,15 @@ export default function TransactionsPage() {
       result = result.filter((tx) => tx.category_id === filterCategory);
     }
 
+    // Filter by date range
+    if (dateRange.from || dateRange.to) {
+      result = result.filter((tx) => {
+        if (dateRange.from && tx.date < dateRange.from) return false;
+        if (dateRange.to && tx.date > dateRange.to) return false;
+        return true;
+      });
+    }
+
     // Filter by search query (searches in note and category name)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -112,7 +126,22 @@ export default function TransactionsPage() {
     }
 
     return result;
-  }, [transactions, filterType, filterCategory, searchQuery]);
+  }, [transactions, filterType, filterCategory, dateRange, searchQuery]);
+
+  // Calculate quick stats for filtered transactions
+  const quickStats = useMemo(() => {
+    const income = filteredTransactions
+      .filter((tx) => tx.type === "income")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const expense = filteredTransactions
+      .filter((tx) => tx.type === "expense")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const net = income - expense;
+    const count = filteredTransactions.length;
+    const avgTransaction = count > 0 ? (income + expense) / count : 0;
+
+    return { income, expense, net, count, avgTransaction };
+  }, [filteredTransactions]);
 
   // Get categories for the current filter type
   const availableCategories = useMemo(() => {
@@ -127,15 +156,20 @@ export default function TransactionsPage() {
     setSearchQuery("");
     setFilterType("all");
     setFilterCategory("all");
+    setDateRange({});
   }, []);
 
-  const hasActiveFilters = searchQuery || filterType !== "all" || filterCategory !== "all";
+  const hasActiveFilters = searchQuery || filterType !== "all" || filterCategory !== "all" || dateRange.from || dateRange.to;
 
   // Ref for search input focus
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Selected transaction for keyboard navigation
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
+  // Bulk selection state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
@@ -249,6 +283,66 @@ export default function TransactionsPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "刪除失敗";
       toast.error(message);
+    }
+  };
+
+  // Bulk selection handlers
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelectTransaction = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAllVisible = useCallback(() => {
+    const allIds = filteredTransactions.map((tx) => tx.id);
+    setSelectedIds(new Set(allIds));
+  }, [filteredTransactions]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`確定要刪除 ${selectedIds.size} 筆交易嗎？此操作無法復原。`)) return;
+
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const id of selectedIds) {
+        try {
+          const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+          const json = await res.json();
+          if (json.error) throw new Error(json.error);
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      if (failCount === 0) {
+        toast.success(`已刪除 ${successCount} 筆交易`);
+      } else {
+        toast.warning(`刪除完成：成功 ${successCount} 筆，失敗 ${failCount} 筆`);
+      }
+
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      refetchTransactions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "批次刪除失敗");
     }
   };
 
@@ -437,14 +531,47 @@ export default function TransactionsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">交易紀錄</h1>
         <div className="flex gap-2">
-          <ImportTransactions onImportComplete={refetchTransactions} />
-          {filteredTransactions.length > 0 && (
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              匯出 CSV
-            </Button>
+          {selectionMode ? (
+            <>
+              <span className="text-sm text-muted-foreground self-center">
+                已選取 {selectedIds.size} 筆
+              </span>
+              {selectedIds.size < filteredTransactions.length && (
+                <Button variant="outline" size="sm" onClick={selectAllVisible}>
+                  全選
+                </Button>
+              )}
+              {selectedIds.size > 0 && (
+                <>
+                  <Button variant="outline" size="sm" onClick={deselectAll}>
+                    取消全選
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    刪除選取項
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" size="sm" onClick={toggleSelectionMode}>
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={toggleSelectionMode}>
+                <CheckSquare className="h-4 w-4 mr-2" />
+                批次操作
+              </Button>
+              <ImportTransactions onImportComplete={refetchTransactions} />
+              {filteredTransactions.length > 0 && (
+                <Button variant="outline" onClick={handleExport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  匯出 CSV
+                </Button>
+              )}
+              <Button onClick={() => handleOpenDialog()}>新增交易</Button>
+            </>
           )}
-          <Button onClick={() => handleOpenDialog()}>新增交易</Button>
         </div>
       </div>
 
@@ -520,6 +647,16 @@ export default function TransactionsPage() {
               </Select>
             </div>
 
+            {/* Date range filter */}
+            <div className="space-y-2">
+              <Label>日期範圍</Label>
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                className="w-full md:w-auto"
+              />
+            </div>
+
             {/* Clear filters button */}
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
@@ -584,6 +721,48 @@ export default function TransactionsPage() {
         </CardContent>
       </Card>
 
+      {/* Quick Stats Summary */}
+      {!isLoading && filteredTransactions.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              收入
+            </div>
+            <p className="text-lg font-semibold text-green-600">
+              {formatWithSign(quickStats.income, "income")}
+            </p>
+          </div>
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <TrendingDown className="h-4 w-4 text-red-600" />
+              支出
+            </div>
+            <p className="text-lg font-semibold text-red-600">
+              {formatWithSign(quickStats.expense, "expense")}
+            </p>
+          </div>
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Calculator className="h-4 w-4" />
+              淨額
+            </div>
+            <p className={`text-lg font-semibold ${quickStats.net >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {quickStats.net >= 0 ? "+" : ""}{formatWithSign(Math.abs(quickStats.net), quickStats.net >= 0 ? "income" : "expense").replace(/[+-]/, "")}
+            </p>
+          </div>
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Receipt className="h-4 w-4" />
+              交易數
+            </div>
+            <p className="text-lg font-semibold">
+              {quickStats.count} 筆
+            </p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <TransactionsSkeleton />
       ) : (
@@ -600,21 +779,52 @@ export default function TransactionsPage() {
           </CardHeader>
           <CardContent>
             {filteredTransactions.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">
-                {hasActiveFilters ? "沒有符合條件的交易" : "本月尚無交易紀錄"}
-              </p>
+              hasActiveFilters ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  沒有符合條件的交易
+                </p>
+              ) : transactions.length === 0 ? (
+                <EmptyState type="transactions" onAction={() => handleOpenDialog()} />
+              ) : (
+                <p className="text-center py-8 text-muted-foreground">
+                  本月尚無交易紀錄
+                </p>
+              )
             ) : (
             <div className="space-y-2">
               {filteredTransactions.map((tx, index) => (
                 <div
                   key={tx.id}
                   className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${
-                    selectedIndex === index
+                    selectedIds.has(tx.id)
+                      ? "bg-primary/10 ring-2 ring-primary"
+                      : selectedIndex === index
                       ? "bg-accent ring-2 ring-primary"
                       : "bg-muted/50 hover:bg-muted"
                   }`}
-                  onClick={() => handleOpenDialog(tx)}
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleSelectTransaction(tx.id);
+                    } else {
+                      handleOpenDialog(tx);
+                    }
+                  }}
                 >
+                  {selectionMode && (
+                    <button
+                      className="mr-3 p-1 hover:bg-muted rounded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectTransaction(tx.id);
+                      }}
+                    >
+                      {selectedIds.has(tx.id) ? (
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Square className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <Badge variant={tx.type === "income" ? "default" : "secondary"}>
@@ -624,7 +834,9 @@ export default function TransactionsPage() {
                       <AttachmentIndicator count={tx.attachment_count || 0} />
                     </div>
                     {tx.note && (
-                      <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        <HighlightText text={tx.note} highlight={searchQuery} />
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -635,40 +847,44 @@ export default function TransactionsPage() {
                     >
                       {formatWithSign(tx.amount, tx.type)}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="複製交易"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDuplicate(tx);
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="儲存為範本"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSaveAsTemplate(tx);
-                      }}
-                    >
-                      <Bookmark className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-600 hover:text-red-700"
-                      title="刪除"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(tx.id);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {!selectionMode && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="複製交易"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDuplicate(tx);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="儲存為範本"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveAsTemplate(tx);
+                          }}
+                        >
+                          <Bookmark className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-600 hover:text-red-700"
+                          title="刪除"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(tx.id);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -753,9 +969,10 @@ export default function TransactionsPage() {
             </div>
             <div className="space-y-2">
               <Label>備註 (選填)</Label>
-              <Input
+              <NoteAutocomplete
                 value={formData.note}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                onChange={(note) => setFormData({ ...formData, note })}
+                categoryId={formData.category_id}
                 placeholder="輸入備註..."
               />
             </div>

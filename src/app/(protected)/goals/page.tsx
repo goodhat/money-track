@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { SavingsGoal } from "@/types/database";
 import { useCurrency } from "@/hooks";
+import { EmptyState } from "@/components/empty-state";
 
 const GOAL_COLORS = [
   "#3b82f6", // blue
@@ -447,18 +448,8 @@ export default function GoalsPage() {
 
       {/* Empty State */}
       {goals.length === 0 && (
-        <Card className="py-12">
-          <CardContent className="text-center">
-            <PiggyBank className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-medium mb-2">尚無儲蓄目標</h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              建立您的第一個儲蓄目標，開始追蹤財務進度
-            </p>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              新增目標
-            </Button>
-          </CardContent>
+        <Card>
+          <EmptyState type="goals" onAction={() => handleOpenDialog()} />
         </Card>
       )}
 

@@ -17,6 +17,9 @@ import {
   Cell,
 } from "recharts";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, ArrowUpRight, ArrowDownRight, AlertTriangle, Target } from "lucide-react";
+import { MonthComparison } from "@/components/month-comparison";
+import { AmountDistributionChart } from "@/components/charts/amount-distribution-chart";
+import { SpendingTips } from "@/components/spending-tips";
 import {
   Card,
   CardContent,
@@ -48,6 +51,11 @@ interface CategoryBreakdown {
   percentage: number;
 }
 
+interface TransactionAmount {
+  type: "income" | "expense";
+  amount: number;
+}
+
 interface AnalyticsData {
   monthlyTrends: MonthlyData[];
   yearOverYear: {
@@ -60,6 +68,7 @@ interface AnalyticsData {
     monthlyExpense: number;
     savingsRate: number;
   };
+  transactionAmounts: TransactionAmount[];
 }
 
 const COLORS = [
@@ -351,6 +360,13 @@ export default function InsightsPage() {
         </Card>
       </div>
 
+      {/* Spending Tips */}
+      <SpendingTips
+        monthlyTrends={data.monthlyTrends}
+        categoryBreakdown={data.categoryBreakdown}
+        averages={data.averages}
+      />
+
       {/* Charts Grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Monthly Trends */}
@@ -466,6 +482,25 @@ export default function InsightsPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Amount Distribution Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>交易金額分布</CardTitle>
+          <CardDescription>各金額區間的交易數量</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AmountDistributionChart
+            transactions={data?.transactionAmounts || []}
+            type="expense"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Month Comparison Section */}
+      <div className="grid gap-6">
+        <MonthComparison />
       </div>
 
       {/* Insights & Alerts Section */}
