@@ -15,12 +15,19 @@ export function AnimatedNumber({
   formatFn = (v) => v.toLocaleString(),
   className,
 }: AnimatedNumberProps) {
-  const [displayValue, setDisplayValue] = useState(0);
-  const previousValue = useRef(0);
+  const [displayValue, setDisplayValue] = useState(value);
+  const previousValue = useRef(value);
+  const isFirstRender = useRef(true);
   const startTime = useRef<number | null>(null);
   const animationFrame = useRef<number | null>(null);
 
   useEffect(() => {
+    // Skip animation on first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     const startValue = previousValue.current;
     const endValue = value;
     const diff = endValue - startValue;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -201,6 +201,13 @@ export default function InsightsPage() {
   const formatCurrency = (value: number) => format(value);
 
   const formatTooltip = (value: number | undefined) => value !== undefined ? formatCurrency(value) : "";
+
+  // Memoized label function for PieChart to avoid re-renders
+  const renderPieLabel = useCallback(
+    ({ name, payload }: { name?: string; payload?: { percentage?: number } }) =>
+      `${name ?? ""} ${(payload?.percentage ?? 0).toFixed(0)}%`,
+    []
+  );
 
   if (isLoading) {
     return (
@@ -446,7 +453,7 @@ export default function InsightsPage() {
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, payload }) => `${name} ${(payload?.percentage ?? 0).toFixed(0)}%`}
+                    label={renderPieLabel}
                     labelLine={false}
                   >
                     {expensePieData.map((_, index) => (
