@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { SavingsGoal } from "@/types/database";
 
 export async function GET() {
   const supabase = await createClient();
@@ -13,11 +14,13 @@ export async function GET() {
   }
 
   const { data, error } = await supabase
-    .from("categories")
+    .from("savings_goals")
     .select("*")
     .eq("user_id", user.id)
-    .order("type")
-    .order("name");
+    .order("is_completed")
+    .order("target_date", { nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .returns<SavingsGoal[]>();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -38,27 +41,34 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, type, color } = body;
+  const { name, target_amount, target_date, color, icon } = body;
 
-  if (!name || !type) {
+  if (!name || !target_amount) {
     return NextResponse.json(
-      { error: "Name and type are required" },
+      { error: "name and target_amount are required" },
       { status: 400 }
     );
   }
 
-  if (!["income", "expense"].includes(type)) {
+  if (target_amount <= 0) {
     return NextResponse.json(
-      { error: "Type must be 'income' or 'expense'" },
+      { error: "target_amount must be positive" },
       { status: 400 }
     );
   }
 
   const { data, error } = await supabase
-    .from("categories")
-    .insert({ user_id: user.id, name, type, color: color || null })
+    .from("savings_goals")
+    .insert({
+      user_id: user.id,
+      name,
+      target_amount,
+      target_date: target_date || null,
+      color: color || "#3b82f6",
+      icon: icon || "piggy-bank",
+    })
     .select()
-    .single();
+    .single<SavingsGoal>();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

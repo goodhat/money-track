@@ -29,13 +29,14 @@ import {
 } from "@/components/ui/select";
 import { Category, TransactionType } from "@/types/database";
 import { CategoriesSkeleton } from "@/components/skeletons/categories-skeleton";
+import { ColorPicker } from "@/components/ui/color-picker";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: "", type: "expense" as TransactionType });
+  const [formData, setFormData] = useState({ name: "", type: "expense" as TransactionType, color: null as string | null });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -59,10 +60,10 @@ export default function CategoriesPage() {
   const handleOpenDialog = (category?: Category) => {
     if (category) {
       setEditingCategory(category);
-      setFormData({ name: category.name, type: category.type });
+      setFormData({ name: category.name, type: category.type, color: category.color });
     } else {
       setEditingCategory(null);
-      setFormData({ name: "", type: "expense" });
+      setFormData({ name: "", type: "expense", color: null });
     }
     setError(null);
     setIsDialogOpen(true);
@@ -148,7 +149,13 @@ export default function CategoriesPage() {
                     key={category.id}
                     className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                   >
-                    <span>{category.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: category.color || "#ef4444" }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
                     <div className="space-x-2">
                       <Button
                         variant="ghost"
@@ -188,7 +195,13 @@ export default function CategoriesPage() {
                     key={category.id}
                     className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                   >
-                    <span>{category.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: category.color || "#10b981" }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
                     <div className="space-x-2">
                       <Button
                         variant="ghost"
@@ -252,6 +265,13 @@ export default function CategoriesPage() {
                   <SelectItem value="income">收入</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>顏色</Label>
+              <ColorPicker
+                value={formData.color}
+                onChange={(color) => setFormData({ ...formData, color })}
+              />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>

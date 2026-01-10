@@ -13,11 +13,10 @@ export async function GET() {
   }
 
   const { data, error } = await supabase
-    .from("categories")
+    .from("saved_filters")
     .select("*")
     .eq("user_id", user.id)
-    .order("type")
-    .order("name");
+    .order("created_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -38,25 +37,24 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, type, color } = body;
+  const { name, filter_type, category_id, search_query } = body;
 
-  if (!name || !type) {
+  if (!name) {
     return NextResponse.json(
-      { error: "Name and type are required" },
-      { status: 400 }
-    );
-  }
-
-  if (!["income", "expense"].includes(type)) {
-    return NextResponse.json(
-      { error: "Type must be 'income' or 'expense'" },
+      { error: "Name is required" },
       { status: 400 }
     );
   }
 
   const { data, error } = await supabase
-    .from("categories")
-    .insert({ user_id: user.id, name, type, color: color || null })
+    .from("saved_filters")
+    .insert({
+      user_id: user.id,
+      name,
+      filter_type: filter_type || null,
+      category_id: category_id || null,
+      search_query: search_query || null,
+    })
     .select()
     .single();
 

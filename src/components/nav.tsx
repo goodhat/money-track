@@ -10,7 +10,10 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/transactions", label: "交易紀錄" },
+  { href: "/insights", label: "財務分析" },
+  { href: "/goals", label: "儲蓄目標" },
   { href: "/categories", label: "分類管理" },
+  { href: "/templates", label: "範本" },
   { href: "/settings", label: "設定" },
 ];
 

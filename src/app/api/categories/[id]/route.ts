@@ -18,11 +18,11 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, type } = body;
+  const { name, type, color } = body;
 
-  if (!name && !type) {
+  if (!name && !type && color === undefined) {
     return NextResponse.json(
-      { error: "At least name or type is required" },
+      { error: "At least name, type, or color is required" },
       { status: 400 }
     );
   }
@@ -34,9 +34,10 @@ export async function PUT(
     );
   }
 
-  const updateData: { name?: string; type?: TransactionType } = {};
+  const updateData: { name?: string; type?: TransactionType; color?: string | null } = {};
   if (name) updateData.name = name;
   if (type) updateData.type = type as TransactionType;
+  if (color !== undefined) updateData.color = color || null;
 
   const { data, error } = await supabase
     .from("categories")

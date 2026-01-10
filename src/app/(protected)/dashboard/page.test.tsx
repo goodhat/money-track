@@ -49,13 +49,27 @@ describe("Dashboard Page", () => {
       },
     };
 
-    // Both DashboardPage and BudgetAlert fetch from /api/dashboard
-    mockFetch.mockImplementation(() =>
-      Promise.resolve({
+    const mockStreaksData = {
+      data: {
+        daily_logging: { current: 0, longest: 0, active_today: false, last_activity: null },
+        under_budget: { current: 0, longest: 0, active_today: false, last_activity: null, budget: 0, spent: 0 },
+        savings_goal: { current: 0, longest: 0, active_today: false, last_activity: null, income: 0, expense: 0 },
+      },
+    };
+
+    // Both DashboardPage and BudgetAlert fetch from /api/dashboard, SpendingStreaks from /api/streaks
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/streaks")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockStreaksData,
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => mockData,
-      })
-    );
+      });
+    });
 
     render(<DashboardPage />);
 
@@ -89,13 +103,26 @@ describe("Dashboard Page", () => {
       },
     };
 
-    // Both DashboardPage and BudgetAlert fetch from /api/dashboard
-    mockFetch.mockImplementation(() =>
-      Promise.resolve({
+    const mockStreaksData = {
+      data: {
+        daily_logging: { current: 0, longest: 0, active_today: false, last_activity: null },
+        under_budget: { current: 0, longest: 0, active_today: false, last_activity: null, budget: 40000, spent: 30000 },
+        savings_goal: { current: 0, longest: 0, active_today: false, last_activity: null, income: 0, expense: 30000 },
+      },
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/streaks")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockStreaksData,
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => mockData,
-      })
-    );
+      });
+    });
 
     render(<DashboardPage />);
 
@@ -119,12 +146,26 @@ describe("Dashboard Page", () => {
       },
     };
 
-    mockFetch.mockImplementation(() =>
-      Promise.resolve({
+    const mockStreaksData = {
+      data: {
+        daily_logging: { current: 0, longest: 0, active_today: false, last_activity: null },
+        under_budget: { current: 0, longest: 0, active_today: false, last_activity: null, budget: 0, spent: 0 },
+        savings_goal: { current: 0, longest: 0, active_today: false, last_activity: null, income: 0, expense: 0 },
+      },
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/streaks")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockStreaksData,
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => mockData,
-      })
-    );
+      });
+    });
 
     render(<DashboardPage />);
 
@@ -146,12 +187,26 @@ describe("Dashboard Page", () => {
       },
     };
 
-    mockFetch.mockImplementation(() =>
-      Promise.resolve({
+    const mockStreaksData = {
+      data: {
+        daily_logging: { current: 0, longest: 0, active_today: false, last_activity: null },
+        under_budget: { current: 0, longest: 0, active_today: false, last_activity: null, budget: 0, spent: 0 },
+        savings_goal: { current: 0, longest: 0, active_today: false, last_activity: null, income: 0, expense: 0 },
+      },
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/streaks")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockStreaksData,
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => mockData,
-      })
-    );
+      });
+    });
 
     render(<DashboardPage />);
 
@@ -173,12 +228,26 @@ describe("Dashboard Page", () => {
       },
     };
 
-    mockFetch.mockImplementation(() =>
-      Promise.resolve({
+    const mockStreaksData = {
+      data: {
+        daily_logging: { current: 0, longest: 0, active_today: false, last_activity: null },
+        under_budget: { current: 0, longest: 0, active_today: false, last_activity: null, budget: 0, spent: 0 },
+        savings_goal: { current: 0, longest: 0, active_today: false, last_activity: null, income: 123456, expense: 0 },
+      },
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/streaks")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockStreaksData,
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => mockData,
-      })
-    );
+      });
+    });
 
     render(<DashboardPage />);
 

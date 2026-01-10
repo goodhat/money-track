@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
-import { Search, X, Download } from "lucide-react";
+import { Search, X, Download, Copy, Bookmark, Filter, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { exportTransactionsToCSV } from "@/lib/export";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,23 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Category, Transaction, TransactionType } from "@/types/database";
+import { Category, Transaction, TransactionType, SavedFilter } from "@/types/database";
 import { TransactionsSkeleton } from "@/components/skeletons/transactions-skeleton";
 import { useApi, usePaginatedApi, useMonthSelector, useCurrency, useKeyboardShortcuts, KEYBOARD_SHORTCUTS } from "@/hooks";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ImportTransactions } from "@/components/import-transactions";
+import { ReceiptAttachment, AttachmentIndicator } from "@/components/receipt-attachment";
 
 interface TransactionWithCategory extends Transaction {
   category: Pick<Category, "id" | "name" | "type">;
+  attachment_count?: number;
 }
 
 type FilterType = "all" | "income" | "expense";
@@ -51,6 +62,9 @@ export default function TransactionsPage() {
 
   // Fetch categories using the useApi hook
   const { data: categories = [] } = useApi<Category[]>("/api/categories");
+
+  // Fetch saved filters
+  const { data: savedFilters = [], refetch: refetchFilters } = useApi<SavedFilter[]>("/api/filters");
 
   // Build URL for paginated transactions
   const buildTransactionsUrl = useCallback(
@@ -119,6 +133,9 @@ export default function TransactionsPage() {
 
   // Ref for search input focus
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Selected transaction for keyboard navigation
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
@@ -235,6 +252,48 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleDuplicate = useCallback(
+    (tx: TransactionWithCategory) => {
+      // Open dialog with duplicated data, but with today's date
+      setEditingTransaction(null);
+      setFormData({
+        type: tx.type,
+        category_id: tx.category_id,
+        amount: String(tx.amount),
+        date: new Date().toISOString().split("T")[0],
+        note: tx.note || "",
+      });
+      setError(null);
+      setIsDialogOpen(true);
+    },
+    []
+  );
+
+  const handleSaveAsTemplate = async (tx: TransactionWithCategory) => {
+    const name = prompt("請輸入範本名稱：", tx.note || tx.category.name);
+    if (!name) return;
+
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          category_id: tx.category_id,
+          type: tx.type,
+          amount: tx.amount,
+          note: tx.note,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      toast.success("已儲存為範本");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "儲存範本失敗");
+    }
+  };
+
   const handleExport = useCallback(() => {
     try {
       exportTransactionsToCSV(filteredTransactions, `transactions_${selectedMonth}.csv`);
@@ -243,6 +302,49 @@ export default function TransactionsPage() {
       toast.error("匯出失敗");
     }
   }, [filteredTransactions, selectedMonth]);
+
+  const handleSaveFilter = async () => {
+    const name = prompt("請輸入篩選器名稱：");
+    if (!name) return;
+
+    try {
+      const res = await fetch("/api/filters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          filter_type: filterType,
+          category_id: filterCategory === "all" ? null : filterCategory,
+          search_query: searchQuery || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      refetchFilters();
+      toast.success("篩選器已儲存");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "儲存篩選器失敗");
+    }
+  };
+
+  const handleApplyFilter = (filter: SavedFilter) => {
+    setFilterType((filter.filter_type as FilterType) || "all");
+    setFilterCategory(filter.category_id || "all");
+    setSearchQuery(filter.search_query || "");
+  };
+
+  const handleDeleteFilter = async (id: string) => {
+    try {
+      const res = await fetch(`/api/filters/${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      refetchFilters();
+      toast.success("篩選器已刪除");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "刪除篩選器失敗");
+    }
+  };
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -264,7 +366,69 @@ export default function TransactionsPage() {
     },
     {
       ...KEYBOARD_SHORTCUTS.ESCAPE,
-      handler: () => setIsDialogOpen(false),
+      handler: () => {
+        if (selectedIndex >= 0) {
+          setSelectedIndex(-1);
+        } else {
+          setIsDialogOpen(false);
+        }
+      },
+    },
+    {
+      key: "j",
+      handler: () => {
+        if (filteredTransactions.length > 0) {
+          setSelectedIndex((prev) => Math.min(prev + 1, filteredTransactions.length - 1));
+        }
+      },
+    },
+    {
+      key: "k",
+      handler: () => {
+        if (selectedIndex > 0) {
+          setSelectedIndex((prev) => prev - 1);
+        }
+      },
+    },
+    {
+      key: "ArrowDown",
+      handler: () => {
+        if (filteredTransactions.length > 0) {
+          setSelectedIndex((prev) => Math.min(prev + 1, filteredTransactions.length - 1));
+        }
+      },
+    },
+    {
+      key: "ArrowUp",
+      handler: () => {
+        if (selectedIndex > 0) {
+          setSelectedIndex((prev) => prev - 1);
+        }
+      },
+    },
+    {
+      key: "Enter",
+      handler: () => {
+        if (selectedIndex >= 0 && selectedIndex < filteredTransactions.length) {
+          handleOpenDialog(filteredTransactions[selectedIndex]);
+        }
+      },
+    },
+    {
+      key: "d",
+      handler: () => {
+        if (selectedIndex >= 0 && selectedIndex < filteredTransactions.length) {
+          handleDuplicate(filteredTransactions[selectedIndex]);
+        }
+      },
+    },
+    {
+      key: "Delete",
+      handler: () => {
+        if (selectedIndex >= 0 && selectedIndex < filteredTransactions.length) {
+          handleDelete(filteredTransactions[selectedIndex].id);
+        }
+      },
     },
   ]);
 
@@ -273,6 +437,7 @@ export default function TransactionsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">交易紀錄</h1>
         <div className="flex gap-2">
+          <ImportTransactions onImportComplete={refetchTransactions} />
           {filteredTransactions.length > 0 && (
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
@@ -362,6 +527,59 @@ export default function TransactionsPage() {
                 清除篩選
               </Button>
             )}
+
+            {/* Saved filters dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Filter className="h-4 w-4" />
+                  篩選器
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>已儲存的篩選器</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {!savedFilters || savedFilters.length === 0 ? (
+                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                    尚無儲存的篩選器
+                  </div>
+                ) : (
+                  savedFilters.map((filter) => (
+                    <DropdownMenuItem
+                      key={filter.id}
+                      className="flex justify-between items-center group"
+                    >
+                      <span
+                        className="flex-1 cursor-pointer"
+                        onClick={() => handleApplyFilter(filter)}
+                      >
+                        {filter.name}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFilter(filter.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-600" />
+                      </Button>
+                    </DropdownMenuItem>
+                  ))
+                )}
+                {hasActiveFilters && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSaveFilter}>
+                      <Bookmark className="h-4 w-4 mr-2" />
+                      儲存目前篩選
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -387,10 +605,14 @@ export default function TransactionsPage() {
               </p>
             ) : (
             <div className="space-y-2">
-              {filteredTransactions.map((tx) => (
+              {filteredTransactions.map((tx, index) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer"
+                  className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${
+                    selectedIndex === index
+                      ? "bg-accent ring-2 ring-primary"
+                      : "bg-muted/50 hover:bg-muted"
+                  }`}
                   onClick={() => handleOpenDialog(tx)}
                 >
                   <div className="flex-1">
@@ -399,12 +621,13 @@ export default function TransactionsPage() {
                         {tx.category.name}
                       </Badge>
                       <span className="text-sm text-muted-foreground">{tx.date}</span>
+                      <AttachmentIndicator count={tx.attachment_count || 0} />
                     </div>
                     {tx.note && (
                       <p className="text-sm text-muted-foreground mt-1">{tx.note}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <span
                       className={`font-medium ${
                         tx.type === "income" ? "text-green-600" : "text-red-600"
@@ -414,14 +637,37 @@ export default function TransactionsPage() {
                     </span>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
+                      title="複製交易"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicate(tx);
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="儲存為範本"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveAsTemplate(tx);
+                      }}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="text-red-600 hover:text-red-700"
+                      title="刪除"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(tx.id);
                       }}
                     >
-                      刪除
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -513,6 +759,21 @@ export default function TransactionsPage() {
                 placeholder="輸入備註..."
               />
             </div>
+            {/* Receipt attachments - only shown when editing existing transaction */}
+            {editingTransaction && (
+              <div className="space-y-2">
+                <Label>收據附件</Label>
+                <ReceiptAttachment
+                  transactionId={editingTransaction.id}
+                  onAttachmentsChange={(count) => {
+                    // Update the attachment count in the transaction list
+                    if (editingTransaction) {
+                      editingTransaction.attachment_count = count;
+                    }
+                  }}
+                />
+              </div>
+            )}
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
           <DialogFooter>
